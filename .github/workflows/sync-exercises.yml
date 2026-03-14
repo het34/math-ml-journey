@@ -1,0 +1,40 @@
+name: Sync Exercises
+
+on:
+  push:
+    paths:
+      - 'notebooks/**/*.ipynb'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install nbformat
+
+      - name: Run sync script
+        run: python scripts/sync_exercises.py
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+
+      - name: Commit updated manifest + history
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data/exercises.json history/
+          git diff --staged --quiet || git commit -m "📚 Auto-sync exercises [skip ci]"
+          git push
