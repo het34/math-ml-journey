@@ -6,12 +6,34 @@
       "topic": "Linear Algebra",
       "level": "Beginner",
       "description": "Understanding vector operations, magnitude, and the geometric intuition behind dot products using NumPy.",
-      "tags": ["numpy", "vectors", "dot-product", "linear-algebra"],
+      "tags": [
+        "numpy",
+        "vectors",
+        "dot-product",
+        "linear-algebra"
+      ],
       "snippet": "import numpy as np\n\n# Define two vectors\na = np.array([2, 3, 1])\nb = np.array([1, 4, 2])\n\n# Dot product\ndot = np.dot(a, b)\nprint(f'Dot product: {dot}')\n\n# Magnitude\nmag_a = np.linalg.norm(a)\nprint(f'|a| = {mag_a:.4f}')",
       "notebookPath": "notebooks/linear-algebra/01_vectors.ipynb",
       "notebookUrl": "https://colab.research.google.com/github/username/math-ml-journey/blob/main/notebooks/linear-algebra/01_vectors.ipynb",
       "pushedAt": "2025-03-14T10:00:00Z"
+    },
+    {
+      "slug": "vectors-and-dot-products",
+      "name": "Vectors and Dot Products",
+      "topic": "Linear Algebra",
+      "level": "Beginner",
+      "description": "Understanding vector operations, magnitude, and the geometric intuition behind dot products using NumPy.",
+      "tags": [
+        "numpy",
+        "vectors",
+        "dot-product",
+        "linear-algebra"
+      ],
+      "snippet": "import numpy as np\n\n# Define two vectors\na = np.array([2, 3, 1])\nb = np.array([1, 4, 2])\n\n# Dot product\ndot = np.dot(a, b)\nprint(f'Dot product: {dot}')\n\n# Magnitude\nmag_a = np.linalg.norm(a)",
+      "notebookPath": "notebooks/linear-algebra/01_vectors_TEMPLATE.ipynb",
+      "notebookUrl": "https://colab.research.google.com/github/het34/math-ml-journey/blob/main/notebooks/linear-algebra/01_vectors_TEMPLATE.ipynb",
+      "pushedAt": "2026-03-14T19:55:26.158787Z"
     }
   ],
-  "lastUpdated": "2025-03-14T10:00:00Z"
+  "lastUpdated": "2026-03-14T19:55:26.158787Z"
 }
