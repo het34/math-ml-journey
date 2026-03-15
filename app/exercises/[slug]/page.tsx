@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getAllExercises, getExerciseBySlug } from '@/lib/exercises'
 import Navbar from '@/components/Navbar'
+import NotebookViewer from '@/components/Notebookviewer'
 
 export const dynamic = 'force-static'
 
@@ -10,9 +11,9 @@ export function generateStaticParams() {
 }
 
 const LEVEL_STYLES = {
-  Beginner:     'bg-green-900/40 text-green-400 border-green-800/50',
+  Beginner: 'bg-green-900/40 text-green-400 border-green-800/50',
   Intermediate: 'bg-yellow-900/40 text-yellow-400 border-yellow-800/50',
-  Advanced:     'bg-red-900/40 text-red-400 border-red-800/50',
+  Advanced: 'bg-red-900/40 text-red-400 border-red-800/50',
 }
 
 function formatDate(iso: string) {
@@ -90,29 +91,16 @@ export default function ExercisePage({ params }: { params: { slug: string } }) {
           <span className="group-hover:translate-x-1 transition-transform">→</span>
         </a>
 
-        {/* Code snippet */}
-        {exercise.snippet && (
-          <section className="mb-10">
-            <h2 className="text-sm font-mono text-muted uppercase tracking-widest mb-3">
-              Code Snippet
-            </h2>
-            <div className="relative rounded-xl overflow-hidden border border-border">
-              {/* Fake terminal bar */}
-              <div className="flex items-center gap-1.5 px-4 py-2.5 bg-[#1A1A20] border-b border-border">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500/60"/>
-                <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/60"/>
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500/60"/>
-                <span className="text-muted text-xs font-mono ml-3 opacity-50">.ipynb</span>
-              </div>
-              <pre className="bg-surface p-5 overflow-x-auto text-sm leading-relaxed">
-                <code className="text-code font-mono whitespace-pre">{exercise.snippet}</code>
-              </pre>
-            </div>
-          </section>
-        )}
+        {/* Notebook cells */}
+        <section className="mb-10">
+          <h2 className="text-sm font-mono text-muted uppercase tracking-widest mb-4">
+            Notebook · {exercise.cells?.length ?? 0} cells
+          </h2>
+          <NotebookViewer cells={exercise.cells ?? []} />
+        </section>
 
         {/* Meta footer */}
-        <div className="rounded-xl border border-border bg-surface p-5 flex flex-wrap gap-6">
+        <div className="rounded-xl border border-border bg-surface p-5 flex flex-wrap gap-6 mt-10">
           <div>
             <p className="text-[11px] text-muted font-mono uppercase tracking-wider mb-1">Pushed on</p>
             <p className="text-text text-sm font-mono">{formatDate(exercise.pushedAt)}</p>

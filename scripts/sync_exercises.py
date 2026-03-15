@@ -2,6 +2,7 @@
 sync_exercises.py
 Runs via GitHub Actions on every .ipynb push.
 - Reads metadata from the first cell of each notebook
+- Stores each code cell separately with its output (text + images)
 - Creates a timestamped history file in history/
 - Updates data/exercises.json (the master list for the website)
 """
@@ -30,18 +31,48 @@ def slugify(text: str) -> str:
     )
 
 
-def parse_metadata(nb_path: str) -> dict:
+def extract_outputs(cell) -> list:
     """
-    Searches the first 3 cells for metadata lines like:
-    # @name: Vectors and Dot Products
-    # @topic: Linear Algebra
-    # @level: Beginner
-    # @description: Understanding vector ops
-    # @tags: numpy, vectors, dot-product
+    Extracts outputs from a notebook cell.
+    Returns a list of output objects:
+      { type: "text", content: "..." }
+      { type: "image", content: "<base64 png data>" }
+      { type: "error", content: "ErrorName: message" }
+    """
+    outputs = []
+    for output in getattr(cell, "outputs", []):
+        output_type = output.get("output_type", "")
 
-    This handles the case where Colab inserts a badge cell at position 0
-    automatically when saving with "Include a link to Colab" checked.
-    """
+        if output_type == "stream":
+            text = output.get("text", "")
+            if isinstance(text, list):
+                text = "".join(text)
+            if text.strip():
+                outputs.append({"type": "text", "content": text.rstrip()})
+
+        elif output_type in ("display_data", "execute_result"):
+            data = output.get("data", {})
+            if "image/png" in data:
+                img = data["image/png"]
+                if isinstance(img, list):
+                    img = "".join(img)
+                outputs.append({"type": "image", "content": img.strip()})
+            elif "text/plain" in data:
+                text = data["text/plain"]
+                if isinstance(text, list):
+                    text = "".join(text)
+                if text.strip():
+                    outputs.append({"type": "text", "content": text.strip()})
+
+        elif output_type == "error":
+            ename  = output.get("ename", "Error")
+            evalue = output.get("evalue", "")
+            outputs.append({"type": "error", "content": f"{ename}: {evalue}"})
+
+    return outputs
+
+
+def parse_notebook(nb_path: str) -> dict:
     meta = {
         "name": "",
         "topic": "",
@@ -49,13 +80,14 @@ def parse_metadata(nb_path: str) -> dict:
         "description": "",
         "tags": [],
         "snippet": "",
+        "cells": [],
     }
 
     nb = nbformat.read(nb_path, as_version=4)
     if not nb.cells:
         return meta
 
-    # Search first 3 cells for metadata (Colab badge may occupy cell 0)
+    # Find metadata cell (search first 3)
     metadata_cell_index = None
     for i, cell in enumerate(nb.cells[:3]):
         src = cell.source if isinstance(cell.source, str) else "".join(cell.source)
@@ -65,7 +97,7 @@ def parse_metadata(nb_path: str) -> dict:
                 clean = line.strip().lstrip("#").strip()
                 if not clean.startswith("@"):
                     continue
-                clean = clean[1:]  # remove @
+                clean = clean[1:]
                 if ":" not in clean:
                     continue
                 key, _, value = clean.partition(":")
@@ -83,21 +115,25 @@ def parse_metadata(nb_path: str) -> dict:
                     meta["tags"] = [t.strip() for t in value.split(",") if t.strip()]
             break
 
-    # Collect ALL code cells after the metadata cell and join them
-    # This way the snippet shows the full exercise even if split across many cells
+    # Collect code cells after metadata cell
     start_from = (metadata_cell_index + 1) if metadata_cell_index is not None else 1
     all_code_parts = []
-    for cell in nb.cells[start_from:]:
-        if cell.cell_type == "code":
-            src = cell.source if isinstance(cell.source, str) else "".join(cell.source)
-            src = src.strip()
-            if src and not src.startswith("# @"):
-                all_code_parts.append(src)
 
+    for cell in nb.cells[start_from:]:
+        if cell.cell_type != "code":
+            continue
+        src = cell.source if isinstance(cell.source, str) else "".join(cell.source)
+        src = src.strip()
+        if not src or src.startswith("# @"):
+            continue
+
+        outputs = extract_outputs(cell)
+        all_code_parts.append(src)
+        meta["cells"].append({"source": src, "outputs": outputs})
+
+    # flat snippet for card preview (first 12 lines of first cell)
     if all_code_parts:
-        # Join all cells with a blank line between them (mirrors how they look in Colab)
-        full_code = "\n\n".join(all_code_parts)
-        meta["snippet"] = full_code
+        meta["snippet"] = "\n".join(all_code_parts[0].splitlines()[:12])
 
     return meta
 
@@ -132,22 +168,22 @@ def write_history(meta: dict, nb_path: str, ts: datetime) -> None:
     }
     with open(os.path.join(HISTORY_DIR, filename), "w") as f:
         json.dump(payload, f, indent=2)
-    print(f"  History → {filename}")
+    print(f"  History -> {filename}")
 
 
 def main() -> None:
-    notebooks  = sorted(glob.glob(f"{NOTEBOOKS}/**/*.ipynb", recursive=True))
-    data       = load_data()
-    existing   = {e["notebookPath"]: e for e in data["exercises"]}
-    timestamp  = datetime.utcnow()
-    synced     = 0
+    notebooks = sorted(glob.glob(f"{NOTEBOOKS}/**/*.ipynb", recursive=True))
+    data      = load_data()
+    existing  = {e["notebookPath"]: e for e in data["exercises"]}
+    timestamp = datetime.utcnow()
+    synced    = 0
 
     for raw_path in notebooks:
         nb_path = raw_path.replace("\\", "/")
         print(f"\nProcessing: {nb_path}")
 
         try:
-            meta = parse_metadata(nb_path)
+            meta = parse_notebook(nb_path)
             if not meta["name"]:
                 print("  Skipped — no @name metadata found in first 3 cells")
                 continue
@@ -161,12 +197,13 @@ def main() -> None:
                 "description":  meta["description"],
                 "tags":         meta["tags"],
                 "snippet":      meta["snippet"],
+                "cells":        meta["cells"],
                 "notebookPath": nb_path,
                 "notebookUrl":  colab_url(nb_path),
                 "pushedAt":     timestamp.isoformat() + "Z",
             }
             write_history(meta, nb_path, timestamp)
-            print(f"  Synced  ✓  {meta['name']}")
+            print(f"  Synced  checkmark  {meta['name']}  ({len(meta['cells'])} cells)")
             synced += 1
 
         except Exception as exc:
@@ -175,7 +212,7 @@ def main() -> None:
     data["exercises"]   = list(existing.values())
     data["lastUpdated"] = timestamp.isoformat() + "Z"
     save_data(data)
-    print(f"\n✅  Done — {synced} notebooks synced, {len(data['exercises'])} total in manifest.")
+    print(f"\nDone — {synced} notebooks synced, {len(data['exercises'])} total in manifest.")
 
 
 if __name__ == "__main__":
