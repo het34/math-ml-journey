@@ -5,7 +5,7 @@
       "name": "A Bank Robber Caught",
       "topic": "Linear Algebra",
       "level": "Beginner",
-      "description": "Graphically visualizing two linear equations to find the intersection point where the sheriff catches the robber.",
+      "description": "Visualizing two linear equations to find the intersection point where the sheriff catches the robber.",
       "tags": [
         "numpy",
         "matplotlib",
@@ -15,22 +15,47 @@
       "snippet": "import numpy as np\nimport matplotlib.pyplot as plt",
       "cells": [
         {
+          "kind": "markdown",
+          "source": "This cell imports the necessary Python libraries:\n*   `numpy` (as `np`) for numerical operations, especially for creating arrays and performing mathematical calculations.\n*   `matplotlib.pyplot` (as `plt`) for creating static, interactive, and animated visualizations in Python."
+        },
+        {
+          "kind": "code",
           "source": "import numpy as np\nimport matplotlib.pyplot as plt",
           "outputs": []
         },
         {
+          "kind": "markdown",
+          "source": "This cell defines the time variable `t` using `numpy.linspace`. It creates an array of 1000 evenly spaced values between 0 and 40 (representing minutes). This `t` array will serve as the independent variable for our distance calculations and the x-axis for our plot."
+        },
+        {
+          "kind": "code",
           "source": "t = np.linspace(0, 40, 1000) # start, finish, n points",
           "outputs": []
         },
         {
+          "kind": "markdown",
+          "source": "This cell calculates the distance traveled by the robber, `d_r`. The robber travels at a constant speed of 2.5 km/minute. The formula `distance = speed * time` is applied here. `d_r` will be an array corresponding to the distances at each point in `t`."
+        },
+        {
+          "kind": "code",
           "source": "d_r = 2.5 * t",
           "outputs": []
         },
         {
+          "kind": "markdown",
+          "source": "This cell calculates the distance traveled by the sheriff, `d_s`. The sheriff starts 5 minutes later than the robber and travels at a speed of 3 km/minute. The formula `distance = speed * (time - start_delay)` is used, where `start_delay` is 5 minutes. Distances before the sheriff starts (t < 5) will be negative, indicating they haven't started yet relative to the robber's timeline."
+        },
+        {
+          "kind": "code",
           "source": "d_s = 3 * (t-5)",
           "outputs": []
         },
         {
+          "kind": "markdown",
+          "source": "This cell generates a plot to visualize the distances traveled by the robber and the sheriff over time. It performs the following steps:\n1.  **Creates a figure and axes**: `fig, ax = plt.subplots()` initializes the plot.\n2.  **Sets title and labels**: Adds a title to the plot and labels for the x (time) and y (distance) axes.\n3.  **Sets axis limits**: `ax.set_xlim` and `ax.set_ylim` define the visible range for the x and y axes.\n4.  **Plots distances**: `ax.plot` draws the distance curves for the robber (`d_r` in green) and the sheriff (`d_s` in brown).\n5.  **Adds intersection markers**: `plt.axvline` and `plt.axhline` add dashed purple lines to visually mark the intersection point where the sheriff catches the robber (at approximately 30 minutes and 75 km).\n6.  **Displays the plot**: `_ = plt.axhline(...)` is used to suppress output from the last call, and the plot is then rendered."
+        },
+        {
+          "kind": "code",
           "source": "fig, ax = plt.subplots()\nplt.title('A Bank Robber Caught')\nplt.xlabel('time (in minutes)')\nplt.ylabel('distance (in km)')\nax.set_xlim([0, 40])\nax.set_ylim([0, 100])\nax.plot(t, d_r, c='green')\nax.plot(t, d_s, c='brown')\nplt.axvline(x=30, color='purple', linestyle='--')\n_ = plt.axhline(y=75, color='purple', linestyle='--')",
           "outputs": [
             {
@@ -42,8 +67,8 @@
       ],
       "notebookPath": "notebooks/linear-algebra/01_bank_robber.ipynb",
       "notebookUrl": "https://colab.research.google.com/github/het34/math-ml-journey/blob/main/notebooks/linear-algebra/01_bank_robber.ipynb",
-      "pushedAt": "2026-03-15T17:36:27.579679Z"
+      "pushedAt": "2026-03-15T18:05:19.038845Z"
     }
   ],
-  "lastUpdated": "2026-03-15T17:36:27.579679Z"
+  "lastUpdated": "2026-03-15T18:05:19.038845Z"
 }
