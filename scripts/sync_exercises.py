@@ -32,12 +32,15 @@ def slugify(text: str) -> str:
 
 def parse_metadata(nb_path: str) -> dict:
     """
-    Reads the first cell of the notebook and parses lines like:
+    Searches the first 3 cells for metadata lines like:
     # @name: Vectors and Dot Products
     # @topic: Linear Algebra
     # @level: Beginner
     # @description: Understanding vector ops
     # @tags: numpy, vectors, dot-product
+
+    This handles the case where Colab inserts a badge cell at position 0
+    automatically when saving with "Include a link to Colab" checked.
     """
     meta = {
         "name": "",
@@ -52,34 +55,43 @@ def parse_metadata(nb_path: str) -> dict:
     if not nb.cells:
         return meta
 
-    first_cell = nb.cells[0]
-    for line in first_cell.source.splitlines():
-        clean = line.strip().lstrip("#").strip()
-        if not clean.startswith("@"):
-            continue
-        clean = clean[1:]  # remove @
-        if ":" not in clean:
-            continue
-        key, _, value = clean.partition(":")
-        key   = key.strip()
-        value = value.strip()
-        if key == "name":
-            meta["name"] = value
-        elif key == "topic":
-            meta["topic"] = value
-        elif key == "level":
-            meta["level"] = value
-        elif key == "description":
-            meta["description"] = value
-        elif key == "tags":
-            meta["tags"] = [t.strip() for t in value.split(",") if t.strip()]
-
-    # First code snippet (up to 12 lines) from any code cell after cell 0
-    for cell in nb.cells[1:]:
-        if cell.cell_type == "code" and cell.source.strip():
-            lines = cell.source.strip().splitlines()
-            meta["snippet"] = "\n".join(lines[:12])
+    # Search first 3 cells for metadata (Colab badge may occupy cell 0)
+    metadata_cell_index = None
+    for i, cell in enumerate(nb.cells[:3]):
+        src = cell.source if isinstance(cell.source, str) else "".join(cell.source)
+        if "@name" in src:
+            metadata_cell_index = i
+            for line in src.splitlines():
+                clean = line.strip().lstrip("#").strip()
+                if not clean.startswith("@"):
+                    continue
+                clean = clean[1:]  # remove @
+                if ":" not in clean:
+                    continue
+                key, _, value = clean.partition(":")
+                key   = key.strip()
+                value = value.strip()
+                if key == "name":
+                    meta["name"] = value
+                elif key == "topic":
+                    meta["topic"] = value
+                elif key == "level":
+                    meta["level"] = value
+                elif key == "description":
+                    meta["description"] = value
+                elif key == "tags":
+                    meta["tags"] = [t.strip() for t in value.split(",") if t.strip()]
             break
+
+    # First code snippet (up to 12 lines) from any code cell after the metadata cell
+    start_from = (metadata_cell_index + 1) if metadata_cell_index is not None else 1
+    for cell in nb.cells[start_from:]:
+        if cell.cell_type == "code":
+            src = cell.source if isinstance(cell.source, str) else "".join(cell.source)
+            if src.strip() and not src.strip().startswith("# @"):
+                lines = src.strip().splitlines()
+                meta["snippet"] = "\n".join(lines[:12])
+                break
 
     return meta
 
@@ -131,7 +143,7 @@ def main() -> None:
         try:
             meta = parse_metadata(nb_path)
             if not meta["name"]:
-                print("  Skipped — no @name metadata found in first cell")
+                print("  Skipped — no @name metadata found in first 3 cells")
                 continue
 
             slug = slugify(meta["name"])
