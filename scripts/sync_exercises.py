@@ -2,7 +2,8 @@
 sync_exercises.py
 Runs via GitHub Actions on every .ipynb push.
 - Reads metadata from the first cell of each notebook
-- Stores each code cell separately with its output (text + images)
+- Stores BOTH code cells and markdown/text cells in order
+- Captures outputs (text, images) from code cells
 - Creates a timestamped history file in history/
 - Updates data/exercises.json (the master list for the website)
 """
@@ -32,13 +33,6 @@ def slugify(text: str) -> str:
 
 
 def extract_outputs(cell) -> list:
-    """
-    Extracts outputs from a notebook cell.
-    Returns a list of output objects:
-      { type: "text", content: "..." }
-      { type: "image", content: "<base64 png data>" }
-      { type: "error", content: "ErrorName: message" }
-    """
     outputs = []
     for output in getattr(cell, "outputs", []):
         output_type = output.get("output_type", "")
@@ -80,14 +74,14 @@ def parse_notebook(nb_path: str) -> dict:
         "description": "",
         "tags": [],
         "snippet": "",
-        "cells": [],
+        "cells": [],   # list of { kind: "code"|"markdown", source, outputs? }
     }
 
     nb = nbformat.read(nb_path, as_version=4)
     if not nb.cells:
         return meta
 
-    # Find metadata cell (search first 3)
+    # --- Find metadata cell (search first 3) ---
     metadata_cell_index = None
     for i, cell in enumerate(nb.cells[:3]):
         src = cell.source if isinstance(cell.source, str) else "".join(cell.source)
@@ -115,25 +109,40 @@ def parse_notebook(nb_path: str) -> dict:
                     meta["tags"] = [t.strip() for t in value.split(",") if t.strip()]
             break
 
-    # Collect code cells after metadata cell
+    # --- Collect all cells after metadata (both code + markdown) ---
     start_from = (metadata_cell_index + 1) if metadata_cell_index is not None else 1
-    all_code_parts = []
+    first_code_snippet = None
 
     for cell in nb.cells[start_from:]:
-        if cell.cell_type != "code":
-            continue
         src = cell.source if isinstance(cell.source, str) else "".join(cell.source)
         src = src.strip()
-        if not src or src.startswith("# @"):
+        if not src:
             continue
 
-        outputs = extract_outputs(cell)
-        all_code_parts.append(src)
-        meta["cells"].append({"source": src, "outputs": outputs})
+        if cell.cell_type == "markdown":
+            # Skip the Colab badge cell
+            if "colab.research.google.com" in src and "badge" in src:
+                continue
+            meta["cells"].append({
+                "kind":   "markdown",
+                "source": src,
+            })
 
-    # flat snippet for card preview (first 12 lines of first cell)
-    if all_code_parts:
-        meta["snippet"] = "\n".join(all_code_parts[0].splitlines()[:12])
+        elif cell.cell_type == "code":
+            if src.startswith("# @"):
+                continue
+            outputs = extract_outputs(cell)
+            meta["cells"].append({
+                "kind":    "code",
+                "source":  src,
+                "outputs": outputs,
+            })
+            if first_code_snippet is None:
+                first_code_snippet = src
+
+    # flat snippet for card preview
+    if first_code_snippet:
+        meta["snippet"] = "\n".join(first_code_snippet.splitlines()[:12])
 
     return meta
 
@@ -185,7 +194,7 @@ def main() -> None:
         try:
             meta = parse_notebook(nb_path)
             if not meta["name"]:
-                print("  Skipped — no @name metadata found in first 3 cells")
+                print("  Skipped - no @name metadata found in first 3 cells")
                 continue
 
             slug = slugify(meta["name"])
@@ -203,7 +212,9 @@ def main() -> None:
                 "pushedAt":     timestamp.isoformat() + "Z",
             }
             write_history(meta, nb_path, timestamp)
-            print(f"  Synced  checkmark  {meta['name']}  ({len(meta['cells'])} cells)")
+            code_count = sum(1 for c in meta["cells"] if c["kind"] == "code")
+            text_count = sum(1 for c in meta["cells"] if c["kind"] == "markdown")
+            print(f"  Synced  {meta['name']}  ({code_count} code, {text_count} text cells)")
             synced += 1
 
         except Exception as exc:
@@ -212,7 +223,7 @@ def main() -> None:
     data["exercises"]   = list(existing.values())
     data["lastUpdated"] = timestamp.isoformat() + "Z"
     save_data(data)
-    print(f"\nDone — {synced} notebooks synced, {len(data['exercises'])} total in manifest.")
+    print(f"\nDone - {synced} notebooks synced, {len(data['exercises'])} total in manifest.")
 
 
 if __name__ == "__main__":

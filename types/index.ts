@@ -7,10 +7,18 @@ export interface CellOutput {
   content: string
 }
 
-export interface NotebookCell {
+export interface CodeCell {
+  kind: 'code'
   source: string
   outputs: CellOutput[]
 }
+
+export interface MarkdownCell {
+  kind: 'markdown'
+  source: string
+}
+
+export type NotebookCell = CodeCell | MarkdownCell
 
 export interface Exercise {
   slug: string
