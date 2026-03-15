@@ -83,15 +83,21 @@ def parse_metadata(nb_path: str) -> dict:
                     meta["tags"] = [t.strip() for t in value.split(",") if t.strip()]
             break
 
-    # First code snippet (up to 12 lines) from any code cell after the metadata cell
+    # Collect ALL code cells after the metadata cell and join them
+    # This way the snippet shows the full exercise even if split across many cells
     start_from = (metadata_cell_index + 1) if metadata_cell_index is not None else 1
+    all_code_parts = []
     for cell in nb.cells[start_from:]:
         if cell.cell_type == "code":
             src = cell.source if isinstance(cell.source, str) else "".join(cell.source)
-            if src.strip() and not src.strip().startswith("# @"):
-                lines = src.strip().splitlines()
-                meta["snippet"] = "\n".join(lines[:12])
-                break
+            src = src.strip()
+            if src and not src.startswith("# @"):
+                all_code_parts.append(src)
+
+    if all_code_parts:
+        # Join all cells with a blank line between them (mirrors how they look in Colab)
+        full_code = "\n\n".join(all_code_parts)
+        meta["snippet"] = full_code
 
     return meta
 
