@@ -1,0 +1,17 @@
+{
+  "name": "A Bank Robber Caught",
+  "topic": "Linear Algebra",
+  "level": "Beginner",
+  "description": "Graphically visualizing two linear equations to find the intersection point where the sheriff catches the robber.",
+  "tags": [
+    "numpy",
+    "matplotlib",
+    "linear-equations",
+    "intersection"
+  ],
+  "snippet": "import numpy as np\nimport matplotlib.pyplot as plt",
+  "notebookPath": "notebooks/linear-algebra/01_bank_robber.ipynb",
+  "notebookUrl": "https://colab.research.google.com/github/het34/math-ml-journey/blob/main/notebooks/linear-algebra/01_bank_robber.ipynb",
+  "pushedAt": "2026-03-15T16:59:08.296566Z",
+  "commitSha": "6596d75"
+}
